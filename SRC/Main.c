@@ -1,8 +1,10 @@
 #include "DSP28x_Project.h"     // Device Headerfile and Examples Include File
 #include "ZXY_app.h"
+#include "SYM_app.h"
 
 void main(void)
 {
+	gf_SYM_vectorTab_ab_prime_init(go_vectorTab_ab_prime); //SYM: Init ab' vector check table, only executes once!
 // Step 1. Initialize System Control:
 // PLL, WatchDog, enable Peripheral Clocks
 // This example function is found in the DSP2834x_SysCtrl.c file.

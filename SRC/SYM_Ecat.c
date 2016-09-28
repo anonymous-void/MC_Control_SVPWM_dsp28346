@@ -8,24 +8,127 @@
 #include "DSP2834x_Device.h"
 #include "ZXY_app.h"
 #include "SYM_app.h"
+#include "math.h"
 
-void sym_ECat_DATA_Write(void)
+//void sym_offline_codec_decode_test()
+//{
+//	sym_Ecat_DATA_Codec(); // Codec the COM info from specific source to go_SYM_ECAT_DOWN_DATA
+////	sym_ECat_DATA_Write(); // Write suppose to be here, but commented for offline test
+//	sym_Ecat_DATA_Decode(); // Decode info from go_SYM_ECAT_DOWN_DATA to go_SYM_ECAT_DOWN_DATA_DECODED
+//}
+
+void sym_online_codec_decode_test()
 {
-	ECat_UP_Buf[0] =  go_SYM_ECAT_DOWN_DATA.SM_CMD.all;
-	ECat_UP_Buf[1] =  go_SYM_ECAT_DOWN_DATA.DUTY1;
-	ECat_UP_Buf[2] =  go_SYM_ECAT_DOWN_DATA.DUTY2;
-	ECat_UP_Buf[3] =  go_SYM_ECAT_DOWN_DATA.DUTY3;
-	ECat_UP_Buf[4] =  go_SYM_ECAT_DOWN_DATA.DUTY4;
-	ECat_UP_Buf[5] =  go_SYM_ECAT_DOWN_DATA.TREE_SEC_1.all;
-	ECat_UP_Buf[6] =  go_SYM_ECAT_DOWN_DATA.TREE_SEC_2.all;
-	ECat_UP_Buf[7] =  go_SYM_ECAT_DOWN_DATA.TREE_SEC_3.all;
-	ECat_UP_Buf[8] =  go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_1.all;
-	ECat_UP_Buf[9] =  go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_2.all;
-	ECat_UP_Buf[10] = go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_3.all;
-	ECat_UP_Buf[11] = go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_4.all;
-	ECat_UP_Buf[12] = go_SYM_ECAT_DOWN_DATA.UdcOverVol;
-	ECat_UP_Buf[13] = go_SYM_ECAT_DOWN_DATA.OverCur;
+		Ecat_DATA_Get();
+		ADRead(AD_Download_Buf);
+		ADWrite();
+		while(DmaRegs.CH1.CONTROL.bit.TRANSFERSTS);
+
+		// Step 1: Calc 3-phase value
+		const float32 f_in = 15, f_out = 50;
+		const float32 A = 8.0/7.0;
+		const float32 step = 0.0001;
+		float32 t = 0;
+
+
+
+		go_SYM_3p_in_vol.a_val = (float32)(A * sin(2 * PI * f_in * t));
+		go_SYM_3p_in_vol.a_val = (float32)(A * sin(2 * PI * f_in * t - 2*PI/3.0));
+		go_SYM_3p_in_vol.a_val = (float32)(A * sin(2 * PI * f_in * t + 2*PI/3.0));
+
+		go_SYM_3p_out_vol.a_val = (float32)(A*sin(2 * PI * f_out * t));
+		go_SYM_3p_out_vol.b_val = (float32)(A*sin(2 * PI * f_out * t - 2*PI/3.0));
+		go_SYM_3p_out_vol.c_val = (float32)(A*sin(2 * PI * f_out * t + 2*PI/3.0));
+
+		gf_SYM_get_vecotor_location_in_ab_prime(&go_SYM_3p_in_vol, &go_inSide_ref_vector_ab_prime_loc);
+		gf_SYM_get_vector_sequence(&go_inSide_ref_vector_ab_prime_loc, go_vectorTab_ab_prime, go_inSide_vector_sequence);
+
+		gf_SYM_get_vecotor_location_in_ab_prime(&go_SYM_3p_out_vol, &go_outSide_ref_vector_ab_prime_loc);
+		gf_SYM_get_vector_sequence(&go_outSide_ref_vector_ab_prime_loc, go_vectorTab_ab_prime, go_outSide_vector_sequence);
+
+		gf_SYM_sequence_combine(go_inSide_vector_sequence, go_outSide_vector_sequence, go_bothSide_vector_sequence);
+
+		gf_SYM_data_bridge(go_bothSide_vector_sequence, &go_SYM_ECAT_DOWN_DATA_NEED_CODEC);
+
+		sym_Ecat_DATA_Codec(&go_SYM_ECAT_DOWN_DATA_NEED_CODEC, &go_SYM_ECAT_DOWN_DATA);
+
+		SMGpioDataSet(4,GPIO_OUT_DOWN);
+//		ECatWrite();//
+		sym_ECat_DATA_Write(&go_SYM_ECAT_DOWN_DATA);
+		SMGpioDataSet(4,GPIO_OUT_UP);
+
+		t = t + step;
+		if (t >= 0.2)
+			t = 0;
 }
+
+void sym_ECat_DATA_Write(gc_SYM_ECAT_DOWN_DATA * ob_ECAT_DOWN_DATA)
+{/* Description: this func write the command data to a specific address for transmission.
+ *  Input args: ob_ECAT_DOWN_DATA, all members are Uint16
+ * */
+    ECat_UP_Buf[0] =  ob_ECAT_DOWN_DATA->SM_CMD.all;
+    ECat_UP_Buf[1] =  ob_ECAT_DOWN_DATA->DUTY1;
+    ECat_UP_Buf[2] =  ob_ECAT_DOWN_DATA->DUTY2;
+    ECat_UP_Buf[3] =  ob_ECAT_DOWN_DATA->DUTY3;
+    ECat_UP_Buf[4] =  ob_ECAT_DOWN_DATA->DUTY4;
+    ECat_UP_Buf[5] =  ob_ECAT_DOWN_DATA->TREE_SEC_1.all;
+    ECat_UP_Buf[6] =  ob_ECAT_DOWN_DATA->TREE_SEC_2.all;
+    ECat_UP_Buf[7] =  ob_ECAT_DOWN_DATA->TREE_SEC_3.all;
+    ECat_UP_Buf[8] =  ob_ECAT_DOWN_DATA->VECTOR_SEC_1.all;
+    ECat_UP_Buf[9] =  ob_ECAT_DOWN_DATA->VECTOR_SEC_2.all;
+    ECat_UP_Buf[10] = ob_ECAT_DOWN_DATA->VECTOR_SEC_3.all;
+    ECat_UP_Buf[11] = ob_ECAT_DOWN_DATA->VECTOR_SEC_4.all;
+    ECat_UP_Buf[12] = ob_ECAT_DOWN_DATA->UdcOverVol;
+    ECat_UP_Buf[13] = ob_ECAT_DOWN_DATA->OverCur;
+}
+
+
+void sym_Ecat_DATA_Codec(gc_SYM_ECAT_DOWN_DATA_DECODED * ob_ECAT_DOWN_DATA_NEED_CODEC,\
+                        gc_SYM_ECAT_DOWN_DATA *ob_ECAT_DOWN_DATA)
+{/* Description: Codec the specific vals to go_SYM_ECAT_DOWN_DATA
+*/
+    singles2halfp((void*)(ob_ECAT_DOWN_DATA->DUTY1), (void*)(&ob_ECAT_DOWN_DATA_NEED_CODEC->duty[0]), 1);
+    singles2halfp((void*)(ob_ECAT_DOWN_DATA->DUTY2), (void*)(&ob_ECAT_DOWN_DATA_NEED_CODEC->duty[1]), 1);
+    singles2halfp((void*)(ob_ECAT_DOWN_DATA->DUTY3), (void*)(&ob_ECAT_DOWN_DATA_NEED_CODEC->duty[2]), 1);
+    singles2halfp((void*)(ob_ECAT_DOWN_DATA->DUTY4), (void*)(&ob_ECAT_DOWN_DATA_NEED_CODEC->duty[3]), 1);
+
+    ob_ECAT_DOWN_DATA->TREE_SEC_1.bit.tree_l = ob_ECAT_DOWN_DATA_NEED_CODEC->tree[0];
+    ob_ECAT_DOWN_DATA->TREE_SEC_1.bit.tree_h = ob_ECAT_DOWN_DATA_NEED_CODEC->tree[1];
+    ob_ECAT_DOWN_DATA->TREE_SEC_2.bit.tree_l = ob_ECAT_DOWN_DATA_NEED_CODEC->tree[2];
+    ob_ECAT_DOWN_DATA->TREE_SEC_2.bit.tree_h = ob_ECAT_DOWN_DATA_NEED_CODEC->tree[3];
+    ob_ECAT_DOWN_DATA->TREE_SEC_3.bit.tree_l = ob_ECAT_DOWN_DATA_NEED_CODEC->tree[4];
+
+    ob_ECAT_DOWN_DATA->VECTOR_SEC_1.bit.vector_l = \
+			sym_Ecat_DATA_Codec_VectCodec(ob_ECAT_DOWN_DATA_NEED_CODEC->vector_input[0].vtype, ob_ECAT_DOWN_DATA_NEED_CODEC->vector_input[0].vnum);
+    ob_ECAT_DOWN_DATA->VECTOR_SEC_1.bit.vector_m = \
+			sym_Ecat_DATA_Codec_VectCodec(ob_ECAT_DOWN_DATA_NEED_CODEC->vector_input[1].vtype, ob_ECAT_DOWN_DATA_NEED_CODEC->vector_input[1].vnum);
+    ob_ECAT_DOWN_DATA->VECTOR_SEC_1.bit.vector_h = \
+			sym_Ecat_DATA_Codec_VectCodec(ob_ECAT_DOWN_DATA_NEED_CODEC->vector_input[2].vtype, ob_ECAT_DOWN_DATA_NEED_CODEC->vector_input[2].vnum);
+
+    ob_ECAT_DOWN_DATA->VECTOR_SEC_2.bit.vector_l = \
+				sym_Ecat_DATA_Codec_VectCodec(ob_ECAT_DOWN_DATA_NEED_CODEC->vector_input[3].vtype, ob_ECAT_DOWN_DATA_NEED_CODEC->vector_input[3].vnum);
+    ob_ECAT_DOWN_DATA->VECTOR_SEC_2.bit.vector_m = \
+				sym_Ecat_DATA_Codec_VectCodec(ob_ECAT_DOWN_DATA_NEED_CODEC->vector_input[4].vtype, ob_ECAT_DOWN_DATA_NEED_CODEC->vector_input[4].vnum);
+
+
+    ob_ECAT_DOWN_DATA->VECTOR_SEC_3.bit.vector_l = \
+				sym_Ecat_DATA_Codec_VectCodec(ob_ECAT_DOWN_DATA_NEED_CODEC->vector_output[0].vtype, ob_ECAT_DOWN_DATA_NEED_CODEC->vector_output[0].vnum);
+    ob_ECAT_DOWN_DATA->VECTOR_SEC_3.bit.vector_m = \
+					sym_Ecat_DATA_Codec_VectCodec(ob_ECAT_DOWN_DATA_NEED_CODEC->vector_output[1].vtype, ob_ECAT_DOWN_DATA_NEED_CODEC->vector_output[1].vnum);
+    ob_ECAT_DOWN_DATA->VECTOR_SEC_3.bit.vector_h = \
+					sym_Ecat_DATA_Codec_VectCodec(ob_ECAT_DOWN_DATA_NEED_CODEC->vector_output[2].vtype, ob_ECAT_DOWN_DATA_NEED_CODEC->vector_output[2].vnum);
+
+    ob_ECAT_DOWN_DATA->VECTOR_SEC_4.bit.vector_l = \
+					sym_Ecat_DATA_Codec_VectCodec(ob_ECAT_DOWN_DATA_NEED_CODEC->vector_output[3].vtype, ob_ECAT_DOWN_DATA_NEED_CODEC->vector_output[3].vnum);
+    ob_ECAT_DOWN_DATA->VECTOR_SEC_4.bit.vector_m = \
+					sym_Ecat_DATA_Codec_VectCodec(ob_ECAT_DOWN_DATA_NEED_CODEC->vector_output[4].vtype, ob_ECAT_DOWN_DATA_NEED_CODEC->vector_output[4].vnum);
+
+
+//    ob_ECAT_DOWN_DATA->SM_CMD.bit.Reset = 0;
+//    ob_ECAT_DOWN_DATA->SM_CMD.bit.deblock = 1;
+
+}
+
 
 uint16_t sym_Ecat_DATA_Codec_VectCodec(int vtype, int vnum)
 {/* Description: Given a specific vector's type and num,
@@ -35,64 +138,6 @@ uint16_t sym_Ecat_DATA_Codec_VectCodec(int vtype, int vnum)
 	ret = ( ( (uint16_t)0x03 & (uint16_t)vtype )<<3 ) + ( (uint16_t)0x07 & (uint16_t)vnum); // 2bit of vtype, 3bit of vnum
 	return ret;
 }
-
-
-void sym_Ecat_DATA_Codec(void)
-{/* Description: Codec the specific vals to go_SYM_ECAT_DOWN_DATA
-*/
-	gc_SYM_ECAT_DOWN_DATA_DECODED fo_SYM_ECAT_DOWN_DATA_DECODED;
-	int i = 0;
-	for (i = 0; i < 5; i++){
-		fo_SYM_ECAT_DOWN_DATA_DECODED.duty[i] = 0.2;
-		fo_SYM_ECAT_DOWN_DATA_DECODED.tree[i] = 13;
-		fo_SYM_ECAT_DOWN_DATA_DECODED.vector_input[i].vtype = 2;
-		fo_SYM_ECAT_DOWN_DATA_DECODED.vector_input[i].vnum = 3;
-		fo_SYM_ECAT_DOWN_DATA_DECODED.vector_output[i].vtype = 3;
-		fo_SYM_ECAT_DOWN_DATA_DECODED.vector_output[i].vnum = 6;
-	}
-	singles2halfp(&go_SYM_ECAT_DOWN_DATA.DUTY1, &fo_SYM_ECAT_DOWN_DATA_DECODED.duty[0], 1);
-	singles2halfp(&go_SYM_ECAT_DOWN_DATA.DUTY2, &fo_SYM_ECAT_DOWN_DATA_DECODED.duty[1], 1);
-	singles2halfp(&go_SYM_ECAT_DOWN_DATA.DUTY3, &fo_SYM_ECAT_DOWN_DATA_DECODED.duty[2], 1);
-	singles2halfp(&go_SYM_ECAT_DOWN_DATA.DUTY4, &fo_SYM_ECAT_DOWN_DATA_DECODED.duty[3], 1);
-
-	go_SYM_ECAT_DOWN_DATA.TREE_SEC_1.bit.tree_l = fo_SYM_ECAT_DOWN_DATA_DECODED.tree[0];
-	go_SYM_ECAT_DOWN_DATA.TREE_SEC_1.bit.tree_h = fo_SYM_ECAT_DOWN_DATA_DECODED.tree[1];
-	go_SYM_ECAT_DOWN_DATA.TREE_SEC_2.bit.tree_l = fo_SYM_ECAT_DOWN_DATA_DECODED.tree[2];
-	go_SYM_ECAT_DOWN_DATA.TREE_SEC_2.bit.tree_h = fo_SYM_ECAT_DOWN_DATA_DECODED.tree[3];
-	go_SYM_ECAT_DOWN_DATA.TREE_SEC_3.bit.tree_l = fo_SYM_ECAT_DOWN_DATA_DECODED.tree[4];
-
-	go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_1.bit.vector_l = \
-			sym_Ecat_DATA_Codec_VectCodec(fo_SYM_ECAT_DOWN_DATA_DECODED.vector_input[0].vtype, fo_SYM_ECAT_DOWN_DATA_DECODED.vector_input[0].vnum);
-	go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_1.bit.vector_m = \
-			sym_Ecat_DATA_Codec_VectCodec(fo_SYM_ECAT_DOWN_DATA_DECODED.vector_input[1].vtype, fo_SYM_ECAT_DOWN_DATA_DECODED.vector_input[1].vnum);
-	go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_1.bit.vector_h = \
-			sym_Ecat_DATA_Codec_VectCodec(fo_SYM_ECAT_DOWN_DATA_DECODED.vector_input[2].vtype, fo_SYM_ECAT_DOWN_DATA_DECODED.vector_input[2].vnum);
-
-	go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_2.bit.vector_l = \
-				sym_Ecat_DATA_Codec_VectCodec(fo_SYM_ECAT_DOWN_DATA_DECODED.vector_input[3].vtype, fo_SYM_ECAT_DOWN_DATA_DECODED.vector_input[3].vnum);
-	go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_2.bit.vector_m = \
-				sym_Ecat_DATA_Codec_VectCodec(fo_SYM_ECAT_DOWN_DATA_DECODED.vector_input[4].vtype, fo_SYM_ECAT_DOWN_DATA_DECODED.vector_input[4].vnum);
-
-
-	go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_3.bit.vector_l = \
-				sym_Ecat_DATA_Codec_VectCodec(fo_SYM_ECAT_DOWN_DATA_DECODED.vector_output[0].vtype, fo_SYM_ECAT_DOWN_DATA_DECODED.vector_output[0].vnum);
-	go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_3.bit.vector_m = \
-					sym_Ecat_DATA_Codec_VectCodec(fo_SYM_ECAT_DOWN_DATA_DECODED.vector_output[1].vtype, fo_SYM_ECAT_DOWN_DATA_DECODED.vector_output[1].vnum);
-	go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_3.bit.vector_h = \
-					sym_Ecat_DATA_Codec_VectCodec(fo_SYM_ECAT_DOWN_DATA_DECODED.vector_output[2].vtype, fo_SYM_ECAT_DOWN_DATA_DECODED.vector_output[2].vnum);
-
-	go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_4.bit.vector_l = \
-					sym_Ecat_DATA_Codec_VectCodec(fo_SYM_ECAT_DOWN_DATA_DECODED.vector_output[3].vtype, fo_SYM_ECAT_DOWN_DATA_DECODED.vector_output[3].vnum);
-	go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_4.bit.vector_m = \
-					sym_Ecat_DATA_Codec_VectCodec(fo_SYM_ECAT_DOWN_DATA_DECODED.vector_output[4].vtype, fo_SYM_ECAT_DOWN_DATA_DECODED.vector_output[4].vnum);
-
-
-	go_SYM_ECAT_DOWN_DATA.SM_CMD.bit.Reset = 0;
-	go_SYM_ECAT_DOWN_DATA.SM_CMD.bit.deblock = 1;
-
-}
-
-
 
 int singles2halfp(void *target, void *source, int numel)
 {
@@ -260,54 +305,54 @@ int halfp2singles(void *target, void *source, int numel)
 }
 
 // SYM: Decode function series are just for offline test.
-void sym_Ecat_DATA_Decode_vector(void)
-{
-    int i = 0;
-    uint16_t mask_type = 0x0018, mask_num = 0x0007;
-    for (i = 0; i < 5; ++i) {
-        go_SYM_ECAT_DOWN_DATA_DECODED.vector_input[i].vtype = (mask_type & go_SYM_ECAT_DOWN_DATA_DECODED.vector_input[i].vraw)>>3;
-        go_SYM_ECAT_DOWN_DATA_DECODED.vector_input[i].vnum = mask_num & go_SYM_ECAT_DOWN_DATA_DECODED.vector_input[i].vraw;
-
-        go_SYM_ECAT_DOWN_DATA_DECODED.vector_output[i].vtype = (mask_type & go_SYM_ECAT_DOWN_DATA_DECODED.vector_output[i].vraw)>>3;
-        go_SYM_ECAT_DOWN_DATA_DECODED.vector_output[i].vnum = mask_num & go_SYM_ECAT_DOWN_DATA_DECODED.vector_output[i].vraw;
-    }
-}
-
-void sym_Ecat_DATA_Decode(void)
-{/* Description: Decode command, tree, vector, duty and so on from go_SYM_ECAT_DOWN_DATA
- * */
-	go_SYM_ECAT_CMD.bit.Reset = go_SYM_ECAT_DOWN_DATA.SM_CMD.bit.Reset; // Original Command code copyed.
-	go_SYM_ECAT_CMD.bit.deblock = go_SYM_ECAT_DOWN_DATA.SM_CMD.bit.deblock;
-
-    halfp2singles(&go_SYM_ECAT_DOWN_DATA_DECODED.duty[0], &go_SYM_ECAT_DOWN_DATA.DUTY1, 1);
-    halfp2singles(&go_SYM_ECAT_DOWN_DATA_DECODED.duty[1], &go_SYM_ECAT_DOWN_DATA.DUTY2, 1);
-    halfp2singles(&go_SYM_ECAT_DOWN_DATA_DECODED.duty[2], &go_SYM_ECAT_DOWN_DATA.DUTY3, 1);
-    halfp2singles(&go_SYM_ECAT_DOWN_DATA_DECODED.duty[3], &go_SYM_ECAT_DOWN_DATA.DUTY4, 1);
-
-    // Input side vector copy;
-    go_SYM_ECAT_DOWN_DATA_DECODED.vector_input[0].vraw = go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_1.bit.vector_l;
-    go_SYM_ECAT_DOWN_DATA_DECODED.vector_input[1].vraw = go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_1.bit.vector_m;
-    go_SYM_ECAT_DOWN_DATA_DECODED.vector_input[2].vraw = go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_1.bit.vector_h;
-
-    go_SYM_ECAT_DOWN_DATA_DECODED.vector_input[3].vraw = go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_2.bit.vector_l;
-    go_SYM_ECAT_DOWN_DATA_DECODED.vector_input[4].vraw = go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_2.bit.vector_m;
-
-    // Output side vector copy
-    go_SYM_ECAT_DOWN_DATA_DECODED.vector_output[0].vraw = go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_3.bit.vector_l;
-    go_SYM_ECAT_DOWN_DATA_DECODED.vector_output[1].vraw = go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_3.bit.vector_m;
-    go_SYM_ECAT_DOWN_DATA_DECODED.vector_output[2].vraw = go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_3.bit.vector_h;
-
-    go_SYM_ECAT_DOWN_DATA_DECODED.vector_output[3].vraw = go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_4.bit.vector_l;
-    go_SYM_ECAT_DOWN_DATA_DECODED.vector_output[4].vraw = go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_4.bit.vector_m;
-
-    sym_Ecat_DATA_Decode_vector(); // Both side vector decode
-
-    // Tree decode
-    go_SYM_ECAT_DOWN_DATA_DECODED.tree[0] = go_SYM_ECAT_DOWN_DATA.TREE_SEC_1.bit.tree_l;
-    go_SYM_ECAT_DOWN_DATA_DECODED.tree[1] = go_SYM_ECAT_DOWN_DATA.TREE_SEC_1.bit.tree_h;
-
-    go_SYM_ECAT_DOWN_DATA_DECODED.tree[2] = go_SYM_ECAT_DOWN_DATA.TREE_SEC_2.bit.tree_l;
-    go_SYM_ECAT_DOWN_DATA_DECODED.tree[3] = go_SYM_ECAT_DOWN_DATA.TREE_SEC_2.bit.tree_h;
-
-    go_SYM_ECAT_DOWN_DATA_DECODED.tree[4] = go_SYM_ECAT_DOWN_DATA.TREE_SEC_3.bit.tree_l;
-}
+//void sym_Ecat_DATA_Decode_vector(void)
+//{
+//    int i = 0;
+//    uint16_t mask_type = 0x0018, mask_num = 0x0007;
+//    for (i = 0; i < 5; ++i) {
+//        go_SYM_ECAT_DOWN_DATA_DECODED.vector_input[i].vtype = (mask_type & go_SYM_ECAT_DOWN_DATA_DECODED.vector_input[i].vraw)>>3;
+//        go_SYM_ECAT_DOWN_DATA_DECODED.vector_input[i].vnum = mask_num & go_SYM_ECAT_DOWN_DATA_DECODED.vector_input[i].vraw;
+//
+//        go_SYM_ECAT_DOWN_DATA_DECODED.vector_output[i].vtype = (mask_type & go_SYM_ECAT_DOWN_DATA_DECODED.vector_output[i].vraw)>>3;
+//        go_SYM_ECAT_DOWN_DATA_DECODED.vector_output[i].vnum = mask_num & go_SYM_ECAT_DOWN_DATA_DECODED.vector_output[i].vraw;
+//    }
+//}
+//
+//void sym_Ecat_DATA_Decode(void)
+//{/* Description: Decode command, tree, vector, duty and so on from go_SYM_ECAT_DOWN_DATA
+// * */
+//	go_SYM_ECAT_CMD.bit.Reset = go_SYM_ECAT_DOWN_DATA.SM_CMD.bit.Reset; // Original Command code copyed.
+//	go_SYM_ECAT_CMD.bit.deblock = go_SYM_ECAT_DOWN_DATA.SM_CMD.bit.deblock;
+//
+//    halfp2singles(&go_SYM_ECAT_DOWN_DATA_DECODED.duty[0], &go_SYM_ECAT_DOWN_DATA.DUTY1, 1);
+//    halfp2singles(&go_SYM_ECAT_DOWN_DATA_DECODED.duty[1], &go_SYM_ECAT_DOWN_DATA.DUTY2, 1);
+//    halfp2singles(&go_SYM_ECAT_DOWN_DATA_DECODED.duty[2], &go_SYM_ECAT_DOWN_DATA.DUTY3, 1);
+//    halfp2singles(&go_SYM_ECAT_DOWN_DATA_DECODED.duty[3], &go_SYM_ECAT_DOWN_DATA.DUTY4, 1);
+//
+//    // Input side vector copy;
+//    go_SYM_ECAT_DOWN_DATA_DECODED.vector_input[0].vraw = go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_1.bit.vector_l;
+//    go_SYM_ECAT_DOWN_DATA_DECODED.vector_input[1].vraw = go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_1.bit.vector_m;
+//    go_SYM_ECAT_DOWN_DATA_DECODED.vector_input[2].vraw = go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_1.bit.vector_h;
+//
+//    go_SYM_ECAT_DOWN_DATA_DECODED.vector_input[3].vraw = go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_2.bit.vector_l;
+//    go_SYM_ECAT_DOWN_DATA_DECODED.vector_input[4].vraw = go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_2.bit.vector_m;
+//
+//    // Output side vector copy
+//    go_SYM_ECAT_DOWN_DATA_DECODED.vector_output[0].vraw = go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_3.bit.vector_l;
+//    go_SYM_ECAT_DOWN_DATA_DECODED.vector_output[1].vraw = go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_3.bit.vector_m;
+//    go_SYM_ECAT_DOWN_DATA_DECODED.vector_output[2].vraw = go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_3.bit.vector_h;
+//
+//    go_SYM_ECAT_DOWN_DATA_DECODED.vector_output[3].vraw = go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_4.bit.vector_l;
+//    go_SYM_ECAT_DOWN_DATA_DECODED.vector_output[4].vraw = go_SYM_ECAT_DOWN_DATA.VECTOR_SEC_4.bit.vector_m;
+//
+//    sym_Ecat_DATA_Decode_vector(); // Both side vector decode
+//
+//    // Tree decode
+//    go_SYM_ECAT_DOWN_DATA_DECODED.tree[0] = go_SYM_ECAT_DOWN_DATA.TREE_SEC_1.bit.tree_l;
+//    go_SYM_ECAT_DOWN_DATA_DECODED.tree[1] = go_SYM_ECAT_DOWN_DATA.TREE_SEC_1.bit.tree_h;
+//
+//    go_SYM_ECAT_DOWN_DATA_DECODED.tree[2] = go_SYM_ECAT_DOWN_DATA.TREE_SEC_2.bit.tree_l;
+//    go_SYM_ECAT_DOWN_DATA_DECODED.tree[3] = go_SYM_ECAT_DOWN_DATA.TREE_SEC_2.bit.tree_h;
+//
+//    go_SYM_ECAT_DOWN_DATA_DECODED.tree[4] = go_SYM_ECAT_DOWN_DATA.TREE_SEC_3.bit.tree_l;
+//}
