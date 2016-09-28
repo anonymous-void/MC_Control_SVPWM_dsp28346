@@ -2,6 +2,8 @@
 #include "ZXY_app.h"
 #include "SYM_app.h"
 
+float test1[200] = {0};
+
 void main(void)
 {
 	gf_SYM_vectorTab_ab_prime_init(go_vectorTab_ab_prime); //SYM: Init ab' vector check table, only executes once!
@@ -40,11 +42,12 @@ void main(void)
 // This function is found in DSP2834x_PieVect.c.
    InitPieVectTable();
    SMGpioSet(4,GPIO_FUN_00,GPIO_R_UP,GPIO_DIR_OUT,3);
-//   SM_Timer_Init();
+   SM_Timer_Init();
    SM_ExInt3_Init();
-   //DataInit();
+
    EcatDataInit();
    EcatInit();
+//   DataInit();
 // Step 4. Initialize all the Device Peripherals:
 // This function is found in DSP2834x_InitPeripherals.c
 // InitPeripherals(); // Not required for this example

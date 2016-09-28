@@ -19,47 +19,56 @@
 
 void sym_online_codec_decode_test()
 {
-		Ecat_DATA_Get();
-		ADRead(AD_Download_Buf);
-		ADWrite();
-		while(DmaRegs.CH1.CONTROL.bit.TRANSFERSTS);
+	// Step 1: Calc 3-phase value
+	const float32 f_in = 15, f_out = 50;
+	const float32 A = 8.0/7.0;
+	const float32 step = 0.0001;
 
-		// Step 1: Calc 3-phase value
-		const float32 f_in = 15, f_out = 50;
-		const float32 A = 8.0/7.0;
-		const float32 step = 0.0001;
-		float32 t = 0;
+	int flag = 0;
+
+	go_SYM_3p_in_vol.a_val = (float32)(A * sin(2 * PI * f_in * t));
+	go_SYM_3p_in_vol.b_val = (float32)(A * sin(2 * PI * f_in * t - 2*PI/3.0));
+	go_SYM_3p_in_vol.c_val = (float32)(A * sin(2 * PI * f_in * t + 2*PI/3.0));
+
+	go_SYM_3p_out_vol.a_val = (float32)(A*sin(2 * PI * f_out * t));
+	go_SYM_3p_out_vol.b_val = (float32)(A*sin(2 * PI * f_out * t - 2*PI/3.0));
+	go_SYM_3p_out_vol.c_val = (float32)(A*sin(2 * PI * f_out * t + 2*PI/3.0));
+
+	gf_SYM_get_vecotor_location_in_ab_prime(&go_SYM_3p_in_vol, &go_inSide_ref_vector_ab_prime_loc);
+	gf_SYM_get_vector_sequence(&go_inSide_ref_vector_ab_prime_loc, go_vectorTab_ab_prime, go_inSide_vector_sequence);
+
+	gf_SYM_get_vecotor_location_in_ab_prime(&go_SYM_3p_out_vol, &go_outSide_ref_vector_ab_prime_loc);
+	gf_SYM_get_vector_sequence(&go_outSide_ref_vector_ab_prime_loc, go_vectorTab_ab_prime, go_outSide_vector_sequence);
+
+	gf_SYM_sequence_combine(go_inSide_vector_sequence, go_outSide_vector_sequence, go_bothSide_vector_sequence);
+
+	gf_SYM_data_bridge(go_bothSide_vector_sequence, &go_SYM_ECAT_DOWN_DATA_NEED_CODEC);
+
+	sym_Ecat_DATA_Codec(&go_SYM_ECAT_DOWN_DATA_NEED_CODEC, &go_SYM_ECAT_DOWN_DATA);
 
 
+	Ecat_DATA_Get();
+	ADRead(AD_Download_Buf);
+//	ADWrite((Uint16)(go_inSide_vector_sequence[0].duty * 4096));
+	ADWrite(ad_test);
+	ad_test += 10;
+	if (ad_test > 4096)
+		ad_test = 0;
+	while(DmaRegs.CH1.CONTROL.bit.TRANSFERSTS);
 
-		go_SYM_3p_in_vol.a_val = (float32)(A * sin(2 * PI * f_in * t));
-		go_SYM_3p_in_vol.a_val = (float32)(A * sin(2 * PI * f_in * t - 2*PI/3.0));
-		go_SYM_3p_in_vol.a_val = (float32)(A * sin(2 * PI * f_in * t + 2*PI/3.0));
-
-		go_SYM_3p_out_vol.a_val = (float32)(A*sin(2 * PI * f_out * t));
-		go_SYM_3p_out_vol.b_val = (float32)(A*sin(2 * PI * f_out * t - 2*PI/3.0));
-		go_SYM_3p_out_vol.c_val = (float32)(A*sin(2 * PI * f_out * t + 2*PI/3.0));
-
-		gf_SYM_get_vecotor_location_in_ab_prime(&go_SYM_3p_in_vol, &go_inSide_ref_vector_ab_prime_loc);
-		gf_SYM_get_vector_sequence(&go_inSide_ref_vector_ab_prime_loc, go_vectorTab_ab_prime, go_inSide_vector_sequence);
-
-		gf_SYM_get_vecotor_location_in_ab_prime(&go_SYM_3p_out_vol, &go_outSide_ref_vector_ab_prime_loc);
-		gf_SYM_get_vector_sequence(&go_outSide_ref_vector_ab_prime_loc, go_vectorTab_ab_prime, go_outSide_vector_sequence);
-
-		gf_SYM_sequence_combine(go_inSide_vector_sequence, go_outSide_vector_sequence, go_bothSide_vector_sequence);
-
-		gf_SYM_data_bridge(go_bothSide_vector_sequence, &go_SYM_ECAT_DOWN_DATA_NEED_CODEC);
-
-		sym_Ecat_DATA_Codec(&go_SYM_ECAT_DOWN_DATA_NEED_CODEC, &go_SYM_ECAT_DOWN_DATA);
-
-		SMGpioDataSet(4,GPIO_OUT_DOWN);
+	SMGpioDataSet(4,GPIO_OUT_DOWN);
 //		ECatWrite();//
-		sym_ECat_DATA_Write(&go_SYM_ECAT_DOWN_DATA);
-		SMGpioDataSet(4,GPIO_OUT_UP);
+	sym_ECat_DATA_Write(&go_SYM_ECAT_DOWN_DATA);
+	SMGpioDataSet(4,GPIO_OUT_UP);
 
-		t = t + step;
-		if (t >= 0.2)
-			t = 0;
+	if (go_bothSide_vector_sequence[0].duty < 0 || go_bothSide_vector_sequence[1].duty < 0||\
+			go_bothSide_vector_sequence[2].duty < 0 || go_bothSide_vector_sequence[3].duty < 0 ||\
+			go_bothSide_vector_sequence[4].duty < 0)
+		flag = 1;
+
+	t = t + step;
+	if (t >= 0.2)
+		t = 0;
 }
 
 void sym_ECat_DATA_Write(gc_SYM_ECAT_DOWN_DATA * ob_ECAT_DOWN_DATA)
@@ -87,10 +96,10 @@ void sym_Ecat_DATA_Codec(gc_SYM_ECAT_DOWN_DATA_DECODED * ob_ECAT_DOWN_DATA_NEED_
                         gc_SYM_ECAT_DOWN_DATA *ob_ECAT_DOWN_DATA)
 {/* Description: Codec the specific vals to go_SYM_ECAT_DOWN_DATA
 */
-    singles2halfp((void*)(ob_ECAT_DOWN_DATA->DUTY1), (void*)(&ob_ECAT_DOWN_DATA_NEED_CODEC->duty[0]), 1);
-    singles2halfp((void*)(ob_ECAT_DOWN_DATA->DUTY2), (void*)(&ob_ECAT_DOWN_DATA_NEED_CODEC->duty[1]), 1);
-    singles2halfp((void*)(ob_ECAT_DOWN_DATA->DUTY3), (void*)(&ob_ECAT_DOWN_DATA_NEED_CODEC->duty[2]), 1);
-    singles2halfp((void*)(ob_ECAT_DOWN_DATA->DUTY4), (void*)(&ob_ECAT_DOWN_DATA_NEED_CODEC->duty[3]), 1);
+    singles2halfp(&ob_ECAT_DOWN_DATA->DUTY1, &ob_ECAT_DOWN_DATA_NEED_CODEC->duty[0], 1);
+    singles2halfp(&ob_ECAT_DOWN_DATA->DUTY2, &ob_ECAT_DOWN_DATA_NEED_CODEC->duty[1], 1);
+    singles2halfp(&ob_ECAT_DOWN_DATA->DUTY3, &ob_ECAT_DOWN_DATA_NEED_CODEC->duty[2], 1);
+    singles2halfp(&ob_ECAT_DOWN_DATA->DUTY4, &ob_ECAT_DOWN_DATA_NEED_CODEC->duty[3], 1);
 
     ob_ECAT_DOWN_DATA->TREE_SEC_1.bit.tree_l = ob_ECAT_DOWN_DATA_NEED_CODEC->tree[0];
     ob_ECAT_DOWN_DATA->TREE_SEC_1.bit.tree_h = ob_ECAT_DOWN_DATA_NEED_CODEC->tree[1];

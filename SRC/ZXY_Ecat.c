@@ -168,15 +168,20 @@ void ADRead(Uint16 *pEtherCatReBuf)
 		*(pEtherCatReBuf++) = ret;
 	}
 }
-void ADWrite(void)
+void ADWrite(Uint16 in_arg)
 {
 	Uint16 *pWrite;
 	Uint16 i=0;
 	Uint16 ret=0;
-	AD_UP_Buf[0] = 0;
-	AD_UP_Buf[1] = 1;
-	AD_UP_Buf[2] = 2;
-	AD_UP_Buf[3] = 3;
+	if (in_arg > 4096)
+		in_arg = 4096;
+	else if (in_arg < 0)
+		in_arg = 0;
+
+	AD_UP_Buf[0] = in_arg;
+	AD_UP_Buf[1] = in_arg;
+	AD_UP_Buf[2] = in_arg;
+	AD_UP_Buf[3] = in_arg;
 	pWrite = AD_START_ADDR+AD_UP_DATA_OFFSET;
 	for(i=0; i<AD_UP_DATA_LENGTH; i++)
 	{

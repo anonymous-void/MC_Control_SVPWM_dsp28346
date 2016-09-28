@@ -50,7 +50,7 @@ void SM_GPIO_Init(void);
 
 // Function declaration
 void ADRead(Uint16 *pEtherCatReBuf);
-void ADWrite(void);
+void ADWrite(Uint16 in_arg);
 void InitXintf(void);
 
 /**********************************/

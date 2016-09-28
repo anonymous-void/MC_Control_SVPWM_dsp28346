@@ -138,6 +138,9 @@ typedef struct gs_SYM_CLARKE_VAL
 } gc_SYM_CLARKE_VAL;
 
 
+extern float32 t;
+extern Uint16 ad_test;
+
 extern gc_SYM_ECAT_CMD_ALL				go_SYM_ECAT_CMD;
 extern gc_SYM_ECAT_DOWN_DATA			go_SYM_ECAT_DOWN_DATA;
 extern gc_SYM_ECAT_DOWN_DATA_DECODED	go_SYM_ECAT_DOWN_DATA_NEED_CODEC;
