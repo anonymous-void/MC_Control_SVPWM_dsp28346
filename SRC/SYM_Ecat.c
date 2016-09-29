@@ -62,8 +62,6 @@ void sym_online_codec_decode_test()
 	const float32 A = 8.0/7.0;
 	const float32 step = 0.0001;
 
-	int flag = 0;
-
 	go_SYM_3p_in_vol.a_val = (float32)(A * sin(2 * PI * f_in * t));
 	go_SYM_3p_in_vol.b_val = (float32)(A * sin(2 * PI * f_in * t - 2*PI/3.0));
 	go_SYM_3p_in_vol.c_val = (float32)(A * sin(2 * PI * f_in * t + 2*PI/3.0));
@@ -72,19 +70,23 @@ void sym_online_codec_decode_test()
 	go_SYM_3p_out_vol.b_val = (float32)(A*sin(2 * PI * f_out * t - 2*PI/3.0));
 	go_SYM_3p_out_vol.c_val = (float32)(A*sin(2 * PI * f_out * t + 2*PI/3.0));
 
+	// Step 2: Calc the duty, vector type, vector num, etc for each side
 	gf_SYM_get_vecotor_location_in_ab_prime(&go_SYM_3p_in_vol, &go_inSide_ref_vector_ab_prime_loc);
 	gf_SYM_get_vector_sequence(&go_inSide_ref_vector_ab_prime_loc, go_vectorTab_ab_prime, go_inSide_vector_sequence);
 
 	gf_SYM_get_vecotor_location_in_ab_prime(&go_SYM_3p_out_vol, &go_outSide_ref_vector_ab_prime_loc);
 	gf_SYM_get_vector_sequence(&go_outSide_ref_vector_ab_prime_loc, go_vectorTab_ab_prime, go_outSide_vector_sequence);
 
+	// Step 3: Combine the two sides sequences into 1 sequence according to their duty cycles
 	gf_SYM_sequence_combine(go_inSide_vector_sequence, go_outSide_vector_sequence, go_bothSide_vector_sequence);
 
+	// Step 4: Copy the sequence data from __get_vector__ format into __ECAT_DOWNDATA_DECODED__ format
 	gf_SYM_data_bridge(go_bothSide_vector_sequence, &go_SYM_ECAT_DOWN_DATA_NEED_CODEC);
 	// SYM: For COM test.
 //	gf_SYM_data_bridge(go_FAKE_bothSide_vector_sequence, &go_SYM_ECAT_DOWN_DATA_NEED_CODEC);
 
-	sym_Ecat_DATA_Codec(&go_SYM_ECAT_DOWN_DATA_NEED_CODEC, &go_SYM_ECAT_DOWN_DATA);
+	// Step 5: Transform all info from float format into Uint16 format for transmission.
+	sym_Ecat_DATA_Codec(&go_SYM_ECAT_DOWN_DATA_NEED_CODEC, &go_SYM_ECAT_DOWN_DATA, 1000, 1000);
 
 
 	Ecat_DATA_Get();
@@ -98,19 +100,24 @@ void sym_online_codec_decode_test()
 
 	while(DmaRegs.CH1.CONTROL.bit.TRANSFERSTS);
 
+	// Step 6: Start transmission.
 	SMGpioDataSet(4,GPIO_OUT_DOWN);
 //		ECatWrite();//
 	sym_ECat_DATA_Write(&go_SYM_ECAT_DOWN_DATA);
 	SMGpioDataSet(4,GPIO_OUT_UP);
 
-	if (go_bothSide_vector_sequence[0].duty < 0 || go_bothSide_vector_sequence[1].duty < 0||\
-			go_bothSide_vector_sequence[2].duty < 0 || go_bothSide_vector_sequence[3].duty < 0 ||\
-			go_bothSide_vector_sequence[4].duty < 0)
-		flag = 1;
+//	if (go_bothSide_vector_sequence[0].duty < 0 || go_bothSide_vector_sequence[1].duty < 0||\
+//			go_bothSide_vector_sequence[2].duty < 0 || go_bothSide_vector_sequence[3].duty < 0 ||\
+//			go_bothSide_vector_sequence[4].duty < 0)
+//		flag = 1;
 
+	// Step 7: Simulation time update
+{
 	t = t + step;
 	if (t >= 0.2)
 		t = 0;
+}
+
 }
 
 void sym_ECat_DATA_Write(gc_SYM_ECAT_DOWN_DATA * ob_ECAT_DOWN_DATA)
@@ -135,9 +142,12 @@ void sym_ECat_DATA_Write(gc_SYM_ECAT_DOWN_DATA * ob_ECAT_DOWN_DATA)
 
 
 void sym_Ecat_DATA_Codec(gc_SYM_ECAT_DOWN_DATA_DECODED * ob_ECAT_DOWN_DATA_NEED_CODEC,\
-                        gc_SYM_ECAT_DOWN_DATA *ob_ECAT_DOWN_DATA)
+                        gc_SYM_ECAT_DOWN_DATA *ob_ECAT_DOWN_DATA, Uint16 UdcOverVol, Uint16 OverCur)
 {/* Description: Codec the specific vals to go_SYM_ECAT_DOWN_DATA
 */
+	ob_ECAT_DOWN_DATA->UdcOverVol = 1000;
+	ob_ECAT_DOWN_DATA->OverCur = 1000;
+
     singles2halfp(&ob_ECAT_DOWN_DATA->DUTY1, &ob_ECAT_DOWN_DATA_NEED_CODEC->duty[0], 1);
     singles2halfp(&ob_ECAT_DOWN_DATA->DUTY2, &ob_ECAT_DOWN_DATA_NEED_CODEC->duty[1], 1);
     singles2halfp(&ob_ECAT_DOWN_DATA->DUTY3, &ob_ECAT_DOWN_DATA_NEED_CODEC->duty[2], 1);

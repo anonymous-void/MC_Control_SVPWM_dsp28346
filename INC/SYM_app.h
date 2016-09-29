@@ -178,7 +178,8 @@ extern gc_SYM_CLARKE_VAL go_SYM_2p_out_cur;
 
 // Function Declaration
 void sym_ECat_DATA_Write(gc_SYM_ECAT_DOWN_DATA * ob_ECAT_DOWN_DATA);
-void sym_Ecat_DATA_Codec(gc_SYM_ECAT_DOWN_DATA_DECODED * ob_ECAT_DOWN_DATA_NEED_CODEC, gc_SYM_ECAT_DOWN_DATA *ob_ECAT_DOWN_DATA);
+void sym_Ecat_DATA_Codec(gc_SYM_ECAT_DOWN_DATA_DECODED * ob_ECAT_DOWN_DATA_NEED_CODEC,\
+                        gc_SYM_ECAT_DOWN_DATA *ob_ECAT_DOWN_DATA, Uint16 UdcOverVol, Uint16 OverCur);
 uint16_t sym_Ecat_DATA_Codec_VectCodec(int vtype, int vnum);
 //void sym_Ecat_DATA_Decode_vector(void); // Called by sym_Ecat_DATA_Decode()
 //void sym_Ecat_DATA_Decode(void);
