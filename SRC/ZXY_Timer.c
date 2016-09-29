@@ -18,7 +18,7 @@ void SM_Timer_Init(void)
    ConfigCpuTimer(&CpuTimer0, 150, 156*5);//5个点中断一次
 //sym: Used for generate Sin(x)
 //   ConfigCpuTimer(&CpuTimer1, 150, 2);	// 2us interrupt
-   ConfigCpuTimer(&CpuTimer2,150,1000);///1ms中断一次
+//   ConfigCpuTimer(&CpuTimer2,150,1000);///1ms中断一次
 
 // To ensure precise timing, use write-only instructions to write to the entire register. Therefore, if any
 // of the configuration bits are changed in ConfigCpuTimer and InitCpuTimers (in DSP2833x_CpuTimers.h), the

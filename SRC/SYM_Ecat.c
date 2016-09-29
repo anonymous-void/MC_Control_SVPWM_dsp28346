@@ -17,6 +17,44 @@
 //	sym_Ecat_DATA_Decode(); // Decode info from go_SYM_ECAT_DOWN_DATA to go_SYM_ECAT_DOWN_DATA_DECODED
 //}
 
+void sym_COM_test_data_init(gcl_vector_seq * ob_FAKE_bothSide_vector_sequence)
+{
+/* Description: Used for test COM system
+ * Vector Type: 1~3, represent I, II, II, 0 is rsvd
+ * Vector Num : 0~6
+ * Duty: 0.0 ~ 1.0
+*/
+	ob_FAKE_bothSide_vector_sequence[0].vector_type_in =  1;
+	ob_FAKE_bothSide_vector_sequence[0].vector_type_out = 1;
+	ob_FAKE_bothSide_vector_sequence[0].vector_num_in =   2;
+	ob_FAKE_bothSide_vector_sequence[0].vector_num_out =  2;
+	ob_FAKE_bothSide_vector_sequence[0].duty =            0.1;
+
+	ob_FAKE_bothSide_vector_sequence[1].vector_type_in =  3;
+	ob_FAKE_bothSide_vector_sequence[1].vector_type_out = 3;
+	ob_FAKE_bothSide_vector_sequence[1].vector_num_in =   1;
+	ob_FAKE_bothSide_vector_sequence[1].vector_num_out =  1;
+	ob_FAKE_bothSide_vector_sequence[1].duty =            0.2;
+
+	ob_FAKE_bothSide_vector_sequence[2].vector_type_in =  2;
+	ob_FAKE_bothSide_vector_sequence[2].vector_type_out = 2;
+	ob_FAKE_bothSide_vector_sequence[2].vector_num_in =   3;
+	ob_FAKE_bothSide_vector_sequence[2].vector_num_out =  3;
+	ob_FAKE_bothSide_vector_sequence[2].duty =            0.3;
+
+	ob_FAKE_bothSide_vector_sequence[3].vector_type_in =  1;
+	ob_FAKE_bothSide_vector_sequence[3].vector_type_out = 1;
+	ob_FAKE_bothSide_vector_sequence[3].vector_num_in =   2;
+	ob_FAKE_bothSide_vector_sequence[3].vector_num_out =  2;
+	ob_FAKE_bothSide_vector_sequence[3].duty =            0.4;
+
+	ob_FAKE_bothSide_vector_sequence[4].vector_type_in =  3;
+	ob_FAKE_bothSide_vector_sequence[4].vector_type_out = 3;
+	ob_FAKE_bothSide_vector_sequence[4].vector_num_in =   1;
+	ob_FAKE_bothSide_vector_sequence[4].vector_num_out =  1;
+	ob_FAKE_bothSide_vector_sequence[4].duty =            0.5;
+}
+
 void sym_online_codec_decode_test()
 {
 	// Step 1: Calc 3-phase value
@@ -43,17 +81,21 @@ void sym_online_codec_decode_test()
 	gf_SYM_sequence_combine(go_inSide_vector_sequence, go_outSide_vector_sequence, go_bothSide_vector_sequence);
 
 	gf_SYM_data_bridge(go_bothSide_vector_sequence, &go_SYM_ECAT_DOWN_DATA_NEED_CODEC);
+	// SYM: For COM test.
+//	gf_SYM_data_bridge(go_FAKE_bothSide_vector_sequence, &go_SYM_ECAT_DOWN_DATA_NEED_CODEC);
 
 	sym_Ecat_DATA_Codec(&go_SYM_ECAT_DOWN_DATA_NEED_CODEC, &go_SYM_ECAT_DOWN_DATA);
 
 
 	Ecat_DATA_Get();
 	ADRead(AD_Download_Buf);
-//	ADWrite((Uint16)(go_inSide_vector_sequence[0].duty * 4096));
+//	ADWrite((Uint16)(go_outSide_vector_sequence[2].duty * 4095));
 	ADWrite(ad_test);
-	ad_test += 10;
-	if (ad_test > 4096)
+	if (ad_test == 0)
+		ad_test = 4095;
+	else
 		ad_test = 0;
+
 	while(DmaRegs.CH1.CONTROL.bit.TRANSFERSTS);
 
 	SMGpioDataSet(4,GPIO_OUT_DOWN);

@@ -173,8 +173,8 @@ void ADWrite(Uint16 in_arg)
 	Uint16 *pWrite;
 	Uint16 i=0;
 	Uint16 ret=0;
-	if (in_arg > 4096)
-		in_arg = 4096;
+	if (in_arg > 4095)
+		in_arg = 4095;
 	else if (in_arg < 0)
 		in_arg = 0;
 

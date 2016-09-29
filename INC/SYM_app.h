@@ -160,6 +160,7 @@ extern gcl_vector_ab_prime_loc go_inSide_ref_vector_ab_prime_loc, go_outSide_ref
 extern gcl_vector_ab_prime go_inSide_vector_sequence[3], go_outSide_vector_sequence[3];
 // Switching sequence
 extern gcl_vector_seq go_bothSide_vector_sequence[5]; //Storing a whole sequence of a duty cycle
+extern gcl_vector_seq go_FAKE_bothSide_vector_sequence[5]; // Only for COM test
 
 extern gc_SYM_THREE_PHASE_VAL go_SYM_3p_in_vol;
 extern gc_SYM_THREE_PHASE_VAL go_SYM_3p_in_cur;
